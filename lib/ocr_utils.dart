@@ -78,11 +78,22 @@ String transform(String placa) {
   return placa.toUpperCase();
 }
 
-// Método para transformar a placa em letras maiúsculas
+// Método para transformar a primeira letra do nome em maiúscula
 String transformPrimeiraLetraNome(String nome) {
-  String nomeTransformado = nome[0].toUpperCase() + nome.substring(1).toLowerCase();
-  return nomeTransformado;
-}
+  List<String> palavras = nome.split(' ');
+  List<String> preposicoes = ['da', 'de', 'do', 'dos', 'das', 'e'];
+
+  for (int i = 0; i < palavras.length; i++) {
+    // Verifica se a palavra é uma preposição
+    if (!preposicoes.contains(palavras[i].toLowerCase())) {
+      palavras[i] = palavras[i][0].toUpperCase() + palavras[i].substring(1).toLowerCase();
+    } else {
+      palavras[i] = palavras[i].toLowerCase();
+    }
+  }
+
+    return palavras.join(' ');
+  }
 
 // Função para verificar se o botão "Salvar" pode ser habilitado
 bool validarCampos(String nome, telefoneController, whatsappController) {

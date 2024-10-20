@@ -661,7 +661,9 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
 
     // Função para verificar se o botão "Salvar" pode ser habilitado
     void validateFields() {
+      setState(() {
         isButtonEnabled = validarCampos(nome, telefoneController, whatsappController);
+      });
     }
 
     showDialog(
@@ -689,8 +691,13 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                     TextField(
                       onChanged: (value) {
                         setState(() {
-                          nome = value;
-                          validateFields();
+                          // Verifica se o campo está vazio
+                          if (value.trim().isEmpty) {
+                            nome = ''; // Atualiza a variável nome para uma string vazia
+                          } else {
+                            nome = transformPrimeiraLetraNome(value).trim(); // Transforma e remove espaços
+                          }
+                          validateFields(); // Chama a função para validar os campos
                         });
                       },
                       decoration: InputDecoration(
