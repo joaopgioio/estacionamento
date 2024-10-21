@@ -105,52 +105,6 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     }
   }
 
-  void showMessage(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue), // Ícone de informação
-              SizedBox(width: 8),
-              Text(
-                'Aviso',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            message,
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'OK',
-                style: TextStyle(color: Colors.blue, fontSize: 16),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    // Limpa a mensagem após um atraso de 3 segundos
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pop(); // Fecha automaticamente o diálogo
-    });
-  }
-
   Future<void> pickImage() async {
     setState(() {
       recognizedText =
@@ -168,10 +122,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
         text = buscaValorPlaca(
             text); // Normaliza ou converte a placa para o formato desejado
         showConfirmationDialog(context, text); // Exibe o diálogo de confirmação
-        showMessage(context, 'Placa reconhecida: $text'); // Mensagem para o usuário
       } else {
-        //showMessage(context,
-         //   'Formato de placa inválido. Tente novamente.'); // Notificação de erro
         showRetryDialog(context); // Exibe o diálogo para tentar novamente
       }
     }
@@ -352,14 +303,13 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: primaryColor,
                   backgroundColor: secondaryColor,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16), // Ajuste de padding
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start, // Ícone e texto alinhados à esquerda
                   children: [
                     Icon(Icons.edit, color: accentColor),
-                    SizedBox(width: 8), // Espaçamento entre o ícone e o texto
+                    SizedBox(width: 8), // Espaçamento maior entre o ícone e o texto
                     Text('Digitar Placa'),
                   ],
                 ),
@@ -375,14 +325,13 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: primaryColor,
                   backgroundColor: secondaryColor,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16), // Ajuste de padding
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start, // Ícone e texto alinhados à esquerda
                   children: [
                     Icon(Icons.camera_alt, color: accentColor),
-                    SizedBox(width: 8), // Espaçamento entre o ícone e o texto
+                    SizedBox(width: 8), // Espaçamento maior entre o ícone e o texto
                     Text('Nova Captura'),
                   ],
                 ),
@@ -397,14 +346,13 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: primaryColor,
                   backgroundColor: secondaryColor,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16), // Ajuste de padding
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start, // Ícone e texto alinhados à esquerda
                   children: [
                     Icon(Icons.close, color: accentColor),
-                    SizedBox(width: 8), // Espaçamento entre o ícone e o texto
+                    SizedBox(width: 8), // Espaçamento maior entre o ícone e o texto
                     Text('Cancelar'),
                   ],
                 ),
@@ -739,7 +687,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         });
                       },
                       decoration: InputDecoration(
-                        labelText: 'Nome do Proprietário',
+                        labelText: 'Proprietário',
                         labelStyle: TextStyle(color: primaryColor),
                         focusedBorder: OutlineInputBorder(
                           borderSide: BorderSide(color: primaryColor),
@@ -822,7 +770,6 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                       whatsappController.text,
                     );
                     showSuccessDialog(context);
-                    //showMessage(context, 'Cadastro realizado com sucesso!');
                   }
                       : null,
                   style: TextButton.styleFrom(
@@ -980,7 +927,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                       TextField(
                         controller: nomeController,
                         decoration: InputDecoration(
-                          labelText: 'Nome do Proprietário',
+                          labelText: 'Proprietário',
                           labelStyle: TextStyle(color: primaryColor),
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: primaryColor),
