@@ -105,17 +105,49 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     }
   }
 
-  void showMessage(String message) {
-    setState(() {
-      recognizedText = message;
-    });
+  void showMessage(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue), // Ícone de informação
+              SizedBox(width: 8),
+              Text(
+                'Aviso',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'OK',
+                style: TextStyle(color: Colors.blue, fontSize: 16),
+              ),
+            ),
+          ],
+        );
+      },
+    );
 
+    // Limpa a mensagem após um atraso de 3 segundos
     Future.delayed(const Duration(seconds: 3), () {
-      if (recognizedText == message) {
-        setState(() {
-          recognizedText = '';
-        });
-      }
+      Navigator.of(context).pop(); // Fecha automaticamente o diálogo
     });
   }
 
@@ -136,10 +168,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
         text = buscaValorPlaca(
             text); // Normaliza ou converte a placa para o formato desejado
         showConfirmationDialog(context, text); // Exibe o diálogo de confirmação
-        showMessage('Placa reconhecida: $text'); // Mensagem para o usuário
+        showMessage(context, 'Placa reconhecida: $text'); // Mensagem para o usuário
       } else {
-        showMessage(
-            'Formato de placa inválido. Tente novamente.'); // Notificação de erro
+        //showMessage(context,
+         //   'Formato de placa inválido. Tente novamente.'); // Notificação de erro
         showRetryDialog(context); // Exibe o diálogo para tentar novamente
       }
     }
@@ -687,6 +719,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 ),
               ),
               content: SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom), // Ajusta o espaçamento com base no teclado
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -699,11 +732,9 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                       onChanged: (value) {
                         setState(() {
                           // Verifica se o campo está vazio
-                          if (value.trim().isEmpty) {
-                            nome = ''; // Atualiza a variável nome para uma string vazia
-                          } else {
-                            nome = transformPrimeiraLetraNome(value).trim(); // Transforma e remove espaços
-                          }
+                          nome = value.trim().isEmpty
+                              ? ''
+                              : transformPrimeiraLetraNome(value).trim(); // Transforma e remove espaços
                           validateFields(); // Chama a função para validar os campos
                         });
                       },
@@ -762,32 +793,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: isButtonEnabled
-                      ? () {
-                    Navigator.of(context).pop();
-                    DatabaseHelper().insertVehicle(
-                      placa,
-                      nome,
-                      telefoneController.text,
-                      whatsappController.text,
-                    );
-                    showMessage('Dados salvos com sucesso!');
-                  }
-                      : null,
-                  style: TextButton.styleFrom(
-                    foregroundColor: primaryColor,
-                    backgroundColor: secondaryColor,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.save, color: accentColor),
-                      SizedBox(width: 8),
-                      Text('Salvar'),
-                    ],
-                  ),
-                ),
+                // Botão "Cancelar" primeiro agora
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
@@ -805,9 +811,78 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                     ],
                   ),
                 ),
+                TextButton(
+                  onPressed: isButtonEnabled
+                      ? () {
+                    Navigator.of(context).pop();
+                    DatabaseHelper().insertVehicle(
+                      placa,
+                      nome,
+                      telefoneController.text,
+                      whatsappController.text,
+                    );
+                    showSuccessDialog(context);
+                    //showMessage(context, 'Cadastro realizado com sucesso!');
+                  }
+                      : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: primaryColor,
+                    backgroundColor: secondaryColor,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.save, color: accentColor),
+                      SizedBox(width: 8),
+                      Text('Salvar'),
+                    ],
+                  ),
+                ),
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void showSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: buttonIconColor, size: 30),
+              SizedBox(width: 10),
+              Text(
+                'Sucesso!',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Os dados foram cadastrados com sucesso.',
+            style: TextStyle(fontSize: 18),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'OK',
+                style: TextStyle(color: primaryColor, fontSize: 16),
+              ),
+            ),
+          ],
         );
       },
     );
