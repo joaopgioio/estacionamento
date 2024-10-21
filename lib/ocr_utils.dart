@@ -102,5 +102,6 @@ bool validarCampos(String nome, telefoneController, whatsappController) {
   final isWhatsappValid = whatsappController.text.length == 19;
 
   // Habilita o botão se todos os campos estiverem preenchidos corretamente
+  print("Botao habilitado? >>>>>>>>>>>>> : $isNomeValid && $isTelefoneValid && $isWhatsappValid");
   return isNomeValid && isTelefoneValid && isWhatsappValid;
 }

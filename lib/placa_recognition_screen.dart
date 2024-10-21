@@ -821,20 +821,36 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
 
     bool isButtonEnabled = false;
 
+    // Função para validar se o botão pode ser habilitado
+    void validateFields(StateSetter setState) {
+      print("Validando campos: ");
+      setState(() {
+        print('Validando campos: Placa: ${placaController.text}, Nome: ${nomeController.text}, Telefone: ${telefoneController.text}, WhatsApp: ${whatsappController.text}');
+
+        bool placaValida = placaController.text.length == 7;
+        bool camposValidos = validarCampos(
+          nomeController.text,
+          telefoneController.text,
+          whatsappController.text,
+        );
+
+        isButtonEnabled = placaValida && camposValidos;
+
+        print('Placa válida: $placaValida, Campos válidos: $camposValidos, Botão habilitado: $isButtonEnabled');
+      });
+    }
+
     await showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
-            void validateButton() {
-              setState(() {
-                isButtonEnabled = placaController.text.length == 7 &&
-                    validarCampos(nomeController.text, telefoneController.text, whatsappController.text);
-              });
-              print('Placa: ${placaController.text}, Nome: ${nomeController.text}, Telefone: ${telefoneController.text}, Whatsapp: ${whatsappController.text}');
-              print('isButtonEnabled >>>>>>>>>>>>> : $isButtonEnabled');
-            }
+            FocusNode placaFocusNode = FocusNode(); // Adiciona um FocusNode
 
+            // Solicita foco após o diálogo ser exibido
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              FocusScope.of(context).requestFocus(placaFocusNode);
+            });
             return AlertDialog(
               title: Text(
                 'Editar Veículo',
@@ -844,89 +860,101 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 ),
               ),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Placa',
-                        labelStyle: TextStyle(color: primaryColor),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
+                child: Container(
+                  constraints: BoxConstraints(maxHeight: 400), // Limita a altura máxima
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        focusNode: placaFocusNode, // Define o FocusNode aqui
+                        controller: placaController,
+                        decoration: InputDecoration(
+                          labelText: 'Placa',
+                          labelStyle: TextStyle(color: primaryColor),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: accentColor),
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: accentColor),
-                        ),
+                        textCapitalization: TextCapitalization.characters,
+                        maxLength: 7,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                          LengthLimitingTextInputFormatter(7), // Limita a 7 caracteres
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            placaController.value = placaController.value.copyWith(
+                              text: transform(value),
+                              selection: TextSelection.collapsed(offset: value.length),
+                            );
+                            validateFields(setState);
+                          });
+                        },
                       ),
-                      controller: placaController,
-                      textCapitalization: TextCapitalization.characters,
-                      maxLength: 7,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
-                        LengthLimitingTextInputFormatter(7), // Limita a 7 caracteres
-                      ],
-                      onChanged: (value) {
-                        placaController.value = placaController.value.copyWith(
-                          text: transform(value),
-                          selection: TextSelection.collapsed(offset: value.length),
-                        );
-                        validateButton();
-                      },
-                    ),
-                    SizedBox(height: 12),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Nome',
-                        labelStyle: TextStyle(color: primaryColor),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
+                      SizedBox(height: 12),
+                      TextField(
+                        controller: nomeController,
+                        decoration: InputDecoration(
+                          labelText: 'Nome do Proprietário',
+                          labelStyle: TextStyle(color: primaryColor),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: accentColor),
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: accentColor),
-                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            nomeController.value = nomeController.value.copyWith(
+                              text: transformPrimeiraLetraNome(value),
+                              selection: TextSelection.collapsed(offset: value.length),
+                            );
+                            validateFields(setState);
+                          });
+                        },
                       ),
-                      controller: nomeController,
-                      onChanged: (value) {
-                        nomeController.value = nomeController.value.copyWith(
-                          text: transformPrimeiraLetraNome(value),
-                          selection: TextSelection.collapsed(offset: value.length),
-                        );
-                        validateButton();
-                      },
-                    ),
-                    SizedBox(height: 12),
-                    TextField(
-                      controller: telefoneController,
-                      decoration: InputDecoration(
-                        labelText: 'Telefone',
-                        labelStyle: TextStyle(color: primaryColor),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
+                      SizedBox(height: 12),
+                      TextField(
+                        controller: telefoneController,
+                        decoration: InputDecoration(
+                          labelText: 'Telefone',
+                          labelStyle: TextStyle(color: primaryColor),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: accentColor),
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: accentColor),
-                        ),
+                        keyboardType: TextInputType.phone,
+                        onChanged: (value) {
+                          validateFields(setState);
+                        },
                       ),
-                      keyboardType: TextInputType.phone,
-                      onChanged: (_) => validateButton(),
-                    ),
-                    SizedBox(height: 12),
-                    TextField(
-                      controller: whatsappController,
-                      decoration: InputDecoration(
-                        labelText: 'WhatsApp',
-                        labelStyle: TextStyle(color: primaryColor),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
+                      SizedBox(height: 12),
+                      TextField(
+                        controller: whatsappController,
+                        decoration: InputDecoration(
+                          labelText: 'WhatsApp',
+                          labelStyle: TextStyle(color: primaryColor),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: accentColor),
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: accentColor),
-                        ),
+                        keyboardType: TextInputType.phone,
+                        onChanged: (value) {
+                          validateFields(setState);
+                        },
                       ),
-                      keyboardType: TextInputType.phone,
-                      onChanged: (_) => validateButton(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -937,7 +965,6 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                   style: TextButton.styleFrom(
                     foregroundColor: primaryColor,
                     backgroundColor: secondaryColor,
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -985,7 +1012,6 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                   style: TextButton.styleFrom(
                     foregroundColor: primaryColor,
                     backgroundColor: secondaryColor,
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1027,8 +1053,7 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   }
 
   Future<void> verificarPlacasCadastradas() async {
-    final List<Map<String, dynamic>> placas = await DatabaseHelper()
-        .getAllVehicles();
+    final List<Map<String, dynamic>> placas = await DatabaseHelper().getAllVehicles();
 
     // Função para construir o botão de fechar
     Widget buildCloseButton(BuildContext context) {
@@ -1039,8 +1064,7 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
         style: TextButton.styleFrom(
           foregroundColor: closeButtonTextColor, // Cor do texto
           backgroundColor: closeButtonColor, // Cor do fundo do botão
-          padding: EdgeInsets.symmetric(
-              horizontal: 16, vertical: 12), // Ajustando o espaçamento do botão
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Ajustando o espaçamento do botão
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1059,40 +1083,42 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
         return Text('Nenhuma placa cadastrada.',
             style: TextStyle(color: contentTextColor)); // Texto do conteúdo
       } else {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: placas.map((vehicle) {
-            return Container(
-              margin: EdgeInsets.symmetric(vertical: 8), // Espaçamento entre os registros
-              decoration: BoxDecoration(
-                color: Colors.white, // Cor de fundo do item
-                border: Border.all(color: primaryColor, width: 1), // Borda
-                borderRadius: BorderRadius.circular(8), // Bordas arredondadas
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2), // Cor da sombra
-                    spreadRadius: 1, // Raio de espalhamento da sombra
-                    blurRadius: 5, // Desfoque da sombra
-                    offset: Offset(0, 3), // Deslocamento da sombra
-                  ),
-                ],
-              ),
-              child: ListTile(
-                title: Text(
-                  vehicle['placa'],
-                  style: TextStyle(color: plateTextColor),
-                ), // Cor do texto da placa
-                subtitle: Text(
-                  vehicle['nome'],
-                  style: TextStyle(color: nameTextColor),
-                ), // Cor do texto do nome
-                onTap: () {
-                  Navigator.of(context).pop();
-                  showVehicleDetails(vehicle);
-                },
-              ),
-            );
-          }).toList(),
+        return SingleChildScrollView( // Adiciona um scroll ao conteúdo
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: placas.map((vehicle) {
+              return Container(
+                margin: EdgeInsets.symmetric(vertical: 8), // Espaçamento entre os registros
+                decoration: BoxDecoration(
+                  color: Colors.white, // Cor de fundo do item
+                  border: Border.all(color: primaryColor, width: 1), // Borda
+                  borderRadius: BorderRadius.circular(8), // Bordas arredondadas
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2), // Cor da sombra
+                      spreadRadius: 1, // Raio de espalhamento da sombra
+                      blurRadius: 5, // Desfoque da sombra
+                      offset: Offset(0, 3), // Deslocamento da sombra
+                    ),
+                  ],
+                ),
+                child: ListTile(
+                  title: Text(
+                    vehicle['placa'] ?? 'Placa não disponível', // Uso do operador ?? para evitar erros
+                    style: TextStyle(color: plateTextColor),
+                  ), // Cor do texto da placa
+                  subtitle: Text(
+                    vehicle['nome'] ?? 'Nome não disponível', // Uso do operador ?? para evitar erros
+                    style: TextStyle(color: nameTextColor),
+                  ), // Cor do texto do nome
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    showVehicleDetails(vehicle);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
         );
       }
     }
@@ -1102,13 +1128,9 @@ class _PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          //backgroundColor: Colors.white,
-          // Cor de fundo do dialog
           title: Text(
               'Placas Cadastradas', style: TextStyle(color: titleColor)),
-          // Cor do texto do título
           content: buildDialogContent(context),
-          // Usando a função para construir o conteúdo
           actions: [
             buildCloseButton(context), // Usando a função para criar o botão
           ],
