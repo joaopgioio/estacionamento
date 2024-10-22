@@ -365,7 +365,6 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   }
 
   void editPlateDialog(BuildContext context, String placa) {
-    //TextEditingController plateController = TextEditingController(text: placa.toUpperCase());
     TextEditingController plateController = TextEditingController(text: transform(placa));
     bool isButtonEnabled = placa.length == 7;
 
@@ -382,34 +381,40 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              content: SingleChildScrollView( // Adicionei o SingleChildScrollView aqui
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: plateController,
-                      maxLength: 7, // Limita a entrada a 7 caracteres
-                      textCapitalization: TextCapitalization.characters, // Converte automaticamente para maiúsculas
-                      decoration: InputDecoration(
-                        labelText: 'Insira a placa correta',
-                        labelStyle: TextStyle(color: primaryColor),
-                        counterText: "", // Remove o contador de caracteres exibido abaixo do campo
+              content: Container(
+                // Defina uma largura e altura máxima para o conteúdo
+                width: 300,
+                constraints: BoxConstraints(
+                  maxHeight: 200, // Limita a altura máxima do conteúdo
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: plateController,
+                        maxLength: 7,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: InputDecoration(
+                          labelText: 'Insira a placa correta',
+                          labelStyle: TextStyle(color: primaryColor),
+                          counterText: "",
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            plateController.value = plateController.value.copyWith(
+                              text: transform(value),
+                              selection: TextSelection.collapsed(offset: value.length),
+                            );
+                            isButtonEnabled = value.length == 7;
+                          });
+                        },
                       ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')), // Permite apenas letras e números
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          // Converte para maiúsculas e atualiza o valor do controlador
-                          plateController.value = plateController.value.copyWith(
-                            text: transform(value), // Usando a classe PlateTransformer
-                            selection: TextSelection.collapsed(offset: value.length),
-                          );
-                          isButtonEnabled = value.length == 7; // Verifica se a quantidade de caracteres é igual a 7
-                        });
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -420,7 +425,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                     Navigator.of(context).pop();
                     showConfirmationDialog(context, updatedPlaca);
                   }
-                      : null, // Desabilita o botão se o campo não tiver exatamente 7 caracteres
+                      : null,
                   style: TextButton.styleFrom(
                     foregroundColor: primaryColor,
                     backgroundColor: secondaryColor,
@@ -900,6 +905,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         decoration: InputDecoration(
                           labelText: 'Placa',
                           labelStyle: TextStyle(color: primaryColor),
+                          counterText: "",
                           focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: primaryColor),
                           ),

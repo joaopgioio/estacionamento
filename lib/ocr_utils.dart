@@ -97,9 +97,22 @@ String transformPrimeiraLetraNome(String nome) {
 
 // Função para verificar se o botão "Salvar" pode ser habilitado
 bool validarCampos(String nome, telefoneController, whatsappController) {
-  final isNomeValid = nome.isNotEmpty;
+
+  final RegExp nomeRegex = RegExp(r'^[a-zA-Z\s]+$'); // Permite apenas letras e espaços
+
+  final isNomeValid = nomeRegex.hasMatch(nome) && nome.length >= 3;;
   final isTelefoneValid = telefoneController.text.length == 19;
   final isWhatsappValid = whatsappController.text.length == 19;
+
+  if (!isNomeValid) {
+    print('Nome inválido: deve conter apenas letras e espaços e ter no mínimo 3 caracteres.');
+  }
+  if (!isTelefoneValid) {
+    print('Telefone inválido: formato inválido. Exemplo: +55 (11) 91234-5678');
+  }
+  if (!isWhatsappValid) {
+    print('WhatsApp inválido: formato inválido. Exemplo: +55 (11) 91234-5678');
+  }
 
   // Habilita o botão se todos os campos estiverem preenchidos corretamente
   print("Botao habilitado? >>>>>>>>>>>>> : $isNomeValid && $isTelefoneValid && $isWhatsappValid");
