@@ -31,8 +31,6 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   static const TextStyle buttonTextStyle = TextStyle(color: buttonTextColor);
   static const Color primaryColor = Color(0xFFEC995B);
   static const Color secondaryColor = Color(0xFFFFF2E8);
-  //static const Color textColorDark = Color(0xFF555555);
-  //static const Color textColorLight = Color(0xFF333333);
   static const Color accentColor = Color(0xFFE47724);
 
   void makeCall(String phone, BuildContext context) async {
@@ -42,10 +40,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
-        _showCallErrorSnackbar(context, phone);
+        showErrorDialog(context, 'Não foi possível ligar para $phone');
       }
     } catch (e) {
-      _showCallErrorSnackbar(context, phone);
+      showErrorDialog(context, 'Não foi possível ligar para $phone');
     }
   }
 
@@ -69,10 +67,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
         await launchUrl(url, mode: LaunchMode
             .externalApplication); // Usa o modo de aplicação externa
       } else {
-        _showErrorSnackbar(context, whatsapp);
+        showErrorDialog(context, 'Não foi possível abrir o WhatsApp para $whatsapp');
       }
     } catch (e) {
-      _showErrorSnackbar(context, whatsapp);
+      showErrorDialog(context, 'Não foi possível abrir o WhatsApp para $whatsapp');
     }
   }
 
@@ -132,9 +130,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     String placa = '';
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white, // Cor de fundo do diálogo
+          //backgroundColor: Colors.white, // Cor de fundo do diálogo
           title: Text(
             'Erro de Formato de Placa',
             style: TextStyle(color: titleColor), // Usa a cor do título
@@ -196,6 +195,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   void showConfirmationDialog(BuildContext context, String placa) {
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return AlertDialog(
           //backgroundColor: Colors.white, // Cor de fundo do diálogo
@@ -280,6 +280,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   void showEditOptionDialog(BuildContext context, String placa) {
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
@@ -370,6 +371,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
@@ -418,26 +420,50 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: isButtonEnabled
-                      ? () {
-                    String updatedPlaca = plateController.text;
-                    Navigator.of(context).pop();
-                    showConfirmationDialog(context, updatedPlaca);
-                  }
-                      : null,
-                  style: TextButton.styleFrom(
-                    foregroundColor: primaryColor,
-                    backgroundColor: secondaryColor,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check, color: accentColor),
-                      SizedBox(width: 8),
-                      Text('Verificar'),
-                    ],
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Posiciona os botões nas extremidades
+                  children: [
+                    // Botão Cancelar
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: primaryColor,
+                        backgroundColor: secondaryColor,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.cancel, color: accentColor),
+                          SizedBox(width: 8),
+                          Text('Cancelar'),
+                        ],
+                      ),
+                    ),
+                    // Botão Verificar
+                    TextButton(
+                      onPressed: isButtonEnabled
+                          ? () {
+                        String updatedPlaca = plateController.text;
+                        Navigator.of(context).pop();
+                        showConfirmationDialog(context, updatedPlaca);
+                      }
+                          : null,
+                      style: TextButton.styleFrom(
+                        foregroundColor: primaryColor,
+                        backgroundColor: secondaryColor,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check, color: accentColor),
+                          SizedBox(width: 8),
+                          Text('Verificar'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -450,6 +476,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   void showVehicleDetails(Map<String, dynamic> vehicleData) {
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
@@ -660,6 +687,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
@@ -766,15 +794,22 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 ),
                 TextButton(
                   onPressed: isButtonEnabled
-                      ? () {
-                    Navigator.of(context).pop();
-                    DatabaseHelper().insertVehicle(
-                      placa,
-                      nome,
-                      telefoneController.text,
-                      whatsappController.text,
-                    );
-                    showSuccessDialog(context);
+                      ? () async {
+                    try {
+                      // Tente inserir o veículo
+                      await DatabaseHelper().insertVehicle(
+                        placa,
+                        nome,
+                        telefoneController.text,
+                        whatsappController.text,
+                      );
+                      // Se for bem-sucedido, mostre o diálogo de sucesso
+                      Navigator.of(context).pop();
+                      showSuccessDialog(context, 'Os dados foram cadastrados com sucesso.');
+                    } catch (e) {
+                      // Se ocorrer um erro, mostre um diálogo de erro
+                      showErrorDialog(context, 'Erro ao cadastrar veículo: $e');
+                    }
                   }
                       : null,
                   style: TextButton.styleFrom(
@@ -798,9 +833,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     );
   }
 
-  void showSuccessDialog(BuildContext context) {
+  Future<void> showSuccessDialog(BuildContext context, String message) async {
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -820,8 +856,48 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
               ),
             ],
           ),
-          content: Text(
-            'Os dados foram cadastrados com sucesso.',
+          content: Text(message,
+            style: TextStyle(fontSize: 18),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'OK',
+                style: TextStyle(color: primaryColor, fontSize: 16),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: buttonIconColor, size: 30),
+              SizedBox(width: 10),
+              Text(
+                'Erro!',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+            ],
+          ),
+          content: Text(message,
             style: TextStyle(fontSize: 18),
           ),
           actions: [
@@ -842,65 +918,43 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
 
   Future<void> showEditForm(Map<String, dynamic> vehicleData) async {
     String placa = vehicleData['placa'];
-    var placaController = TextEditingController(text: vehicleData['placa']);
-    var nomeController = TextEditingController(text: vehicleData['nome']);
-    var telefoneController = MaskedTextController(
-      mask: '+55 (00) 00000-0000',
-      text: vehicleData['telefone'],
-    );
-    var whatsappController = MaskedTextController(
-      mask: '+55 (00) 00000-0000',
-      text: vehicleData['whatsapp'],
-    );
+
+    TextEditingController placaController = TextEditingController(text: vehicleData['placa']);
+    TextEditingController nomeController = TextEditingController(text: vehicleData['nome']);
+    MaskedTextController telefoneController = MaskedTextController(mask: '+55 (00) 00000-0000', text: vehicleData['telefone']);
+    MaskedTextController whatsappController = MaskedTextController(mask: '+55 (00) 00000-0000', text: vehicleData['whatsapp']);
 
     bool isButtonEnabled = false;
 
     // Função para validar se o botão pode ser habilitado
     void validateFields(StateSetter setState) {
-      print("Validando campos: ");
       setState(() {
-        print('Validando campos: Placa: ${placaController.text}, Nome: ${nomeController.text}, Celular: ${telefoneController.text}, WhatsApp: ${whatsappController.text}');
-
+        String nome = nomeController.text;
         bool placaValida = placaController.text.length == 7;
-        bool camposValidos = validarCampos(
-          nomeController.text,
-          telefoneController.text,
-          whatsappController.text,
-        );
-
+        bool camposValidos = validarCampos(nome, telefoneController, whatsappController);
         isButtonEnabled = placaValida && camposValidos;
-
-        print('Placa válida: $placaValida, Campos válidos: $camposValidos, Botão habilitado: $isButtonEnabled');
       });
     }
 
     await showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
-            FocusNode placaFocusNode = FocusNode(); // Adiciona um FocusNode
-
-            // Solicita foco após o diálogo ser exibido
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              FocusScope.of(context).requestFocus(placaFocusNode);
-            });
             return AlertDialog(
               title: Text(
                 'Editar Veículo',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
                 child: Container(
-                  constraints: BoxConstraints(maxHeight: 400), // Limita a altura máxima
+                  constraints: BoxConstraints(maxHeight: 400), // Limite a altura
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       TextField(
-                        focusNode: placaFocusNode, // Define o FocusNode aqui
                         controller: placaController,
                         decoration: InputDecoration(
                           labelText: 'Placa',
@@ -917,14 +971,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         maxLength: 7,
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
-                          LengthLimitingTextInputFormatter(7), // Limita a 7 caracteres
+                          LengthLimitingTextInputFormatter(7),
                         ],
                         onChanged: (value) {
                           setState(() {
-                            placaController.value = placaController.value.copyWith(
-                              text: transform(value),
-                              selection: TextSelection.collapsed(offset: value.length),
-                            );
                             validateFields(setState);
                           });
                         },
@@ -955,6 +1005,9 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                       SizedBox(height: 12),
                       TextField(
                         controller: telefoneController,
+                        onChanged: (value) {
+                          validateFields(setState);
+                        },
                         decoration: InputDecoration(
                           labelText: 'Celular',
                           labelStyle: TextStyle(color: primaryColor),
@@ -966,13 +1019,13 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                           ),
                         ),
                         keyboardType: TextInputType.phone,
-                        onChanged: (value) {
-                          validateFields(setState);
-                        },
                       ),
                       SizedBox(height: 12),
                       TextField(
                         controller: whatsappController,
+                        onChanged: (value) {
+                          validateFields(setState);
+                        },
                         decoration: InputDecoration(
                           labelText: 'WhatsApp',
                           labelStyle: TextStyle(color: primaryColor),
@@ -984,9 +1037,6 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                           ),
                         ),
                         keyboardType: TextInputType.phone,
-                        onChanged: (value) {
-                          validateFields(setState);
-                        },
                       ),
                     ],
                   ),
@@ -1014,6 +1064,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                   onPressed: isButtonEnabled
                       ? () async {
                     try {
+                      print('Antes Botão de Salvar clicado!');
+                      // Atualiza os valores no editableVehicleData com os valores dos controladores
                       await DatabaseHelper().updateVehicle(
                         placa,
                         placaController.text,
@@ -1021,26 +1073,13 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         telefoneController.text,
                         whatsappController.text,
                       );
-                      vehicleData['placa'] = placaController.text;
-                      vehicleData['nome'] = nomeController.text;
-                      vehicleData['telefone'] = telefoneController.text;
-                      vehicleData['whatsapp'] = whatsappController.text;
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Veículo atualizado com sucesso!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-
+                      print('Depois Botão de Salvar clicado!');
                       Navigator.of(context).pop();
+                      refreshVehicleDetails(placaController.text);
+                      showSuccessDialog(context, 'Veículo atualizado com sucesso!');
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erro ao atualizar veículo: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      print('Erro: $e');
+                      showErrorDialog(context, 'Erro ao atualizar veículo: $e');
                     }
                   }
                       : null,
@@ -1201,6 +1240,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   void showDeleteConfirmationDialog(String placa) {
     showDialog(
       context: context,
+      barrierDismissible: false, // Impede fechar clicando fora do diálogo
       builder: (BuildContext context) {
         return AlertDialog(
           //backgroundColor: Colors.white, // Cor de fundo do dialog

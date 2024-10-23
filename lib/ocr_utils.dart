@@ -96,11 +96,11 @@ String transformPrimeiraLetraNome(String nome) {
   }
 
 // Função para verificar se o botão "Salvar" pode ser habilitado
-bool validarCampos(String nome, telefoneController, whatsappController) {
+bool validarCampos(nomeController, telefoneController, whatsappController) {
 
-  final RegExp nomeRegex = RegExp(r'^[a-zA-Z\s]+$'); // Permite apenas letras e espaços
+  RegExp nomeRegex = RegExp(r'^[a-zA-ZÀ-ÿ\s]+$'); // Permite letras, acentos e espaços
 
-  final isNomeValid = nomeRegex.hasMatch(nome) && nome.length >= 3;;
+  final isNomeValid = nomeRegex.hasMatch(nomeController) && nomeController.length >= 3;;
   final isTelefoneValid = telefoneController.text.length == 19;
   final isWhatsappValid = whatsappController.text.length == 19;
 
