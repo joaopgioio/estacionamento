@@ -14,63 +14,78 @@ Future<String> recognizeTextFromImage(File image) async {
   return placa;
 }
 
-//bool isValidPlate(String text) {
-//  final regex = RegExp(r'^[A-Z]{3} \d{4}$');
-//  return regex.hasMatch(text);
-//}
-
 bool isValidPlate(String text) {
 
-  // Formato padrão antigo: 3 letras + 4 números
-  final oldPattern = RegExp(r'^[A-Z0-9]{3}-[A-Z0-9]{4}');
-
-  // Formato padrão Mercosul: 3 letras + 1 número + 1 letra + 2 números
-  final newPattern = RegExp(r'^[A-Z0-9]{4}[A-Z0-9][0-9]{2}');
-
-  List<String> palavras = text.split(' ');
-
-  String placa = "";
-
-  if (palavras.length >= 3) {
-    placa = palavras[2];
-    print('Placa: $placa');
+  // Se texto for null, retorne false imediatamente
+  if (text == null) {
+    return false;
   } else {
-    placa;
+    String texto = "";
+    // Remove o "-"
+    texto = text.replaceAll(RegExp(r'[-.·]'), '').trim();
+
+    // Continue a execução se 'texto' não for nulo
+    String? placa = buscaValorPlaca(texto);
+
+    // Verifica se a placa encontrada é válida e não é nula
+    if (placa != null && validFormatPlate(placa)) {
+      return true; // Placa válida
+    } else {
+      return false; // Placa inválida ou não encontrada
+    }
   }
-
-  // Remove espaços extras
-  placa = placa.replaceAll(' ', '');
-  print("Placa : " + placa);
-
-  // Verifica se a placa corresponde a um dos formatos
-  return oldPattern.hasMatch(placa) || newPattern.hasMatch(placa);
 }
 
-String buscaValorPlaca(String text) {
+String enviaPlaca(texto){
+
+  // Chama a função que remove o hífen, busca e valida a placa
+  String? placa = buscaValorPlaca(texto);
+
+  // Verifica se a placa encontrada é válida e não é nula
+  if (placa != null && validFormatPlate(placa)) {
+    return placa; // Retorna a placa validada
+  } else {
+    return 'Nenhuma placa encontrada'; // Retorna null se a placa não for válida ou não existir
+  }
+}
+
+String? buscaValorPlaca(String texto) {
+  // Remover espaços extras e transformar o texto para letras maiúsculas
+  texto = texto.replaceAll(RegExp(r'\s+'), '').toUpperCase();
+
+  // Expressão regular para o formato antigo: 3 letras + 4 números (ex: FBI5551)
+  RegExp oldPattern = RegExp(r'[A-Z]{3}[0-9]{4}');
+
+  // Expressão regular para o formato Mercosul: 3 letras + 1 número + 1 letra + 2 números (ex: ABC1D23)
+  RegExp newPattern = RegExp(r'[A-Z]{3}[0-9]{1}[A-Z]{1}[0-9]{2}');
+
+  // Verifica se há correspondência com o formato antigo
+  Match? matchOld = oldPattern.firstMatch(texto);
+
+  // Verifica se há correspondência com o formato Mercosul
+  Match? matchNew = newPattern.firstMatch(texto);
+
+  // Retorna a placa encontrada se algum dos padrões corresponder
+  if (matchOld != null) {
+    return matchOld.group(0); // Placa no formato antigo
+  } else if (matchNew != null) {
+    return matchNew.group(0); // Placa no formato Mercosul
+  } else {
+    return null; // Nenhuma placa encontrada
+  }
+}
+
+bool validFormatPlate(String placa) {
 
   // Formato padrão antigo: 3 letras + 4 números
-  final oldPattern = RegExp(r'^[A-Z0-9]{3}-[A-Z0-9]{4}');
+  final oldPattern = RegExp(r'[A-Z]{3}[0-9]{4}');
 
   // Formato padrão Mercosul: 3 letras + 1 número + 1 letra + 2 números
-  final newPattern = RegExp(r'^[A-Z0-9]{4}[A-Z0-9][0-9]{2}');
+  final newPattern = RegExp(r'[A-Z]{3}[0-9]{1}[A-Z]{1}[0-9]{2}');
 
-  List<String> palavras = text.split(' ');
+  bool resultado = oldPattern.hasMatch(placa) || newPattern.hasMatch(placa);
+  return resultado;
 
-  String placa = "";
-
-  if (palavras.length >= 3) {
-    placa = palavras[2];
-    print('Placa: $placa');
-  } else {
-    placa;
-  }
-
-  // Remove espaços extras
-  placa = placa.replaceAll(' ', '');
-  print("Placa : " + placa);
-
-  // Verifica se a placa corresponde a um dos formatos
-  return placa;
 }
 
 // Método para transformar a placa em letras maiúsculas
@@ -100,7 +115,7 @@ bool validarCampos(nomeController, telefoneController, whatsappController) {
 
   RegExp nomeRegex = RegExp(r'^[a-zA-ZÀ-ÿ\s]+$'); // Permite letras, acentos e espaços
 
-  final isNomeValid = nomeRegex.hasMatch(nomeController) && nomeController.length >= 3;;
+  final isNomeValid = nomeRegex.hasMatch(nomeController) && nomeController.length >= 3;
   final isTelefoneValid = telefoneController.text.length == 19;
   final isWhatsappValid = whatsappController.text.length == 19;
 
@@ -115,6 +130,5 @@ bool validarCampos(nomeController, telefoneController, whatsappController) {
   }
 
   // Habilita o botão se todos os campos estiverem preenchidos corretamente
-  print("Botao habilitado? >>>>>>>>>>>>> : $isNomeValid && $isTelefoneValid && $isWhatsappValid");
   return isNomeValid && isTelefoneValid && isWhatsappValid;
 }

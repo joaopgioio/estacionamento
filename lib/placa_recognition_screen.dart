@@ -47,16 +47,6 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     }
   }
 
-  void _showCallErrorSnackbar(BuildContext context, String phone) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Não foi possível ligar para $phone'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.redAccent,
-      ),
-    );
-  }
-
   Future<void> openWhatsApp(String whatsapp, BuildContext context) async {
     final String formattedWhatsApp = whatsapp.replaceAll(
         RegExp(r'\D'), ''); // Remove todos os caracteres não numéricos
@@ -67,21 +57,13 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
         await launchUrl(url, mode: LaunchMode
             .externalApplication); // Usa o modo de aplicação externa
       } else {
-        showErrorDialog(context, 'Não foi possível abrir o WhatsApp para $whatsapp');
+        showErrorDialog(
+            context, 'Não foi possível abrir o WhatsApp para $whatsapp');
       }
     } catch (e) {
-      showErrorDialog(context, 'Não foi possível abrir o WhatsApp para $whatsapp');
+      showErrorDialog(
+          context, 'Não foi possível abrir o WhatsApp para $whatsapp');
     }
-  }
-
-  void _showErrorSnackbar(BuildContext context, String whatsapp) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Não foi possível abrir o WhatsApp para $whatsapp'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.redAccent,
-      ),
-    );
   }
 
   Future<String> recognizeTextFromImage(File image) async {
@@ -117,10 +99,18 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
       String text = await recognizeTextFromImage(file);
 
       if (isValidPlate(text)) {
-        text = buscaValorPlaca(
-            text); // Normaliza ou converte a placa para o formato desejado
-        showConfirmationDialog(context, text); // Exibe o diálogo de confirmação
+        String placa = enviaPlaca(text);
+        print("Caiu no isValidPlate: $placa");
+        if (placa == 'Nenhuma placa encontrada') {
+          showRetryDialog(context); // Exibe o diálogo para tentar novamente
+        } else {
+          print("Caiu no else do isValidPlate: $placa");
+          //text = placa!; // Normaliza ou converte a placa para o formato desejado
+          showConfirmationDialog(
+              context, placa); // Exibe o diálogo de confirmação
+        }
       } else {
+        print("Caiu no else isValidPlate.");
         showRetryDialog(context); // Exibe o diálogo para tentar novamente
       }
     }
@@ -201,7 +191,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
           //backgroundColor: Colors.white, // Cor de fundo do diálogo
           title: Text(
             'Placa Capturada',
-            style: TextStyle(color: titleColor, fontWeight: FontWeight.bold), // Usa a cor do título
+            style: TextStyle(color: titleColor,
+                fontWeight: FontWeight.bold), // Usa a cor do título
           ),
           content: Text(
             'A placa reconhecida é: $placa. Está correta?',
@@ -295,7 +286,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
           ),
           actions: [
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0), // Espaço entre botões
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              // Espaço entre botões
               child: TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -304,20 +296,24 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: primaryColor,
                   backgroundColor: secondaryColor,
-                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16), // Ajuste de padding
+                  padding: EdgeInsets.symmetric(
+                      vertical: 12, horizontal: 16), // Ajuste de padding
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start, // Ícone e texto alinhados à esquerda
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  // Ícone e texto alinhados à esquerda
                   children: [
                     Icon(Icons.edit, color: accentColor),
-                    SizedBox(width: 8), // Espaçamento maior entre o ícone e o texto
+                    SizedBox(width: 8),
+                    // Espaçamento maior entre o ícone e o texto
                     Text('Digitar Placa'),
                   ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0), // Espaço entre botões
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              // Espaço entre botões
               child: TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -326,20 +322,24 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: primaryColor,
                   backgroundColor: secondaryColor,
-                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16), // Ajuste de padding
+                  padding: EdgeInsets.symmetric(
+                      vertical: 12, horizontal: 16), // Ajuste de padding
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start, // Ícone e texto alinhados à esquerda
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  // Ícone e texto alinhados à esquerda
                   children: [
                     Icon(Icons.camera_alt, color: accentColor),
-                    SizedBox(width: 8), // Espaçamento maior entre o ícone e o texto
+                    SizedBox(width: 8),
+                    // Espaçamento maior entre o ícone e o texto
                     Text('Nova Captura'),
                   ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0), // Espaço entre botões
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              // Espaço entre botões
               child: TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -347,13 +347,16 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: primaryColor,
                   backgroundColor: secondaryColor,
-                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16), // Ajuste de padding
+                  padding: EdgeInsets.symmetric(
+                      vertical: 12, horizontal: 16), // Ajuste de padding
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start, // Ícone e texto alinhados à esquerda
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  // Ícone e texto alinhados à esquerda
                   children: [
-                    Icon(Icons.close, color: accentColor),
-                    SizedBox(width: 8), // Espaçamento maior entre o ícone e o texto
+                    Icon(Icons.cancel, color: accentColor),
+                    SizedBox(width: 8),
+                    // Espaçamento maior entre o ícone e o texto
                     Text('Cancelar'),
                   ],
                 ),
@@ -366,7 +369,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   }
 
   void editPlateDialog(BuildContext context, String placa) {
-    TextEditingController plateController = TextEditingController(text: transform(placa));
+    TextEditingController plateController = TextEditingController(
+        text: transform(placa));
     bool isButtonEnabled = placa.length == 7;
 
     showDialog(
@@ -403,15 +407,19 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                           counterText: "",
                         ),
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z0-9]')),
                         ],
                         onChanged: (value) {
                           setState(() {
-                            plateController.value = plateController.value.copyWith(
-                              text: transform(value),
-                              selection: TextSelection.collapsed(offset: value.length),
-                            );
-                            isButtonEnabled = value.length == 7;
+                            plateController.value =
+                                plateController.value.copyWith(
+                                  text: transform(value),
+                                  selection: TextSelection.collapsed(
+                                      offset: value.length),
+                                );
+                            isButtonEnabled =
+                                value.length == 7 && validFormatPlate(value);
                           });
                         },
                       ),
@@ -421,7 +429,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
               ),
               actions: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Posiciona os botões nas extremidades
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Posiciona os botões nas extremidades
                   children: [
                     // Botão Cancelar
                     TextButton(
@@ -445,9 +454,11 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                     TextButton(
                       onPressed: isButtonEnabled
                           ? () {
-                        String updatedPlaca = plateController.text;
+                        //String updatedPlaca = plateController.text;
+                        String? updatedPlaca = buscaValorPlaca(plateController
+                            .text);
                         Navigator.of(context).pop();
-                        showConfirmationDialog(context, updatedPlaca);
+                        showConfirmationDialog(context, updatedPlaca!);
                       }
                           : null,
                       style: TextButton.styleFrom(
@@ -507,7 +518,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Proprietário:', style: TextStyle(color: primaryColor)),
+                    Text(
+                        'Proprietário:', style: TextStyle(color: primaryColor)),
                     SizedBox(width: 16),
                     Expanded(
                       child: Text(
@@ -556,7 +568,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                           makeCall(vehicleData['telefone'], context);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Número de celular não disponível.')),
+                            SnackBar(content: Text(
+                                'Número de celular não disponível.')),
                           );
                         }
                       },
@@ -582,7 +595,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                           openWhatsApp(vehicleData['whatsapp'], context);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Número do WhatsApp não disponível.')),
+                            SnackBar(content: Text(
+                                'Número do WhatsApp não disponível.')),
                           );
                         }
                       },
@@ -603,9 +617,23 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                     SizedBox(height: 10), // Espaçamento entre os botões
                     TextButton(
                       onPressed: () async {
-                        await showEditForm(vehicleData);
-                        Navigator.of(context).pop();
-                        refreshVehicleDetails(vehicleData['placa']);
+                        // Captura a nova placa editada
+                        String? updatedPlaca = await showEditForm(vehicleData);
+
+                        if (updatedPlaca != null && updatedPlaca.isNotEmpty) {
+                          // Fecha o diálogo de detalhes
+                          Navigator.of(context).pop();
+
+                          // Atualiza os detalhes com a nova placa
+                          refreshVehicleDetails(
+                              updatedPlaca); // Passa a nova placa para a função de atualização
+                        } else {
+                          // Mostra uma mensagem de erro se a placa for inválida
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('A placa não pode estar vazia.')),
+                          );
+                        }
                       },
                       style: TextButton.styleFrom(
                         foregroundColor: primaryColor,
@@ -624,6 +652,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                     SizedBox(height: 10), // Espaçamento entre os botões
                     TextButton(
                       onPressed: () {
+                        Navigator.of(context).pop(); // Fecha o diálogo
                         showDeleteConfirmationDialog(vehicleData['placa']);
                       },
                       style: TextButton.styleFrom(
@@ -646,8 +675,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         Navigator.of(context).pop(); // Fecha o diálogo
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor: closeButtonTextColor, // Cor do texto
-                        backgroundColor: closeButtonColor, // Cor do fundo do botão
+                        foregroundColor: closeButtonTextColor,
+                        // Cor do texto
+                        backgroundColor: closeButtonColor,
+                        // Cor do fundo do botão
                         padding: EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12, // Ajustando o espaçamento do botão
@@ -656,8 +687,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.close, color: closeButtonIconColor), // Ícone de fechar
-                          SizedBox(width: 8), // Espaçamento entre o ícone e o texto
+                          Icon(Icons.close, color: closeButtonIconColor),
+                          // Ícone de fechar
+                          SizedBox(width: 8),
+                          // Espaçamento entre o ícone e o texto
                           Text('Fechar'),
                         ],
                       ),
@@ -678,7 +711,6 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     var whatsappController = MaskedTextController(mask: '+55 (00) 00000-0000');
     bool isButtonEnabled = false;
 
-    // Função para verificar se o botão "Salvar" pode ser habilitado
     void validateFields() {
       setState(() {
         isButtonEnabled = validarCampos(nome, telefoneController, whatsappController);
@@ -687,7 +719,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Impede fechar clicando fora do diálogo
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
@@ -699,82 +731,104 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              content: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom), // Ajusta o espaçamento com base no teclado
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Placa: $placa',
-                      style: TextStyle(color: primaryColor),
+              content: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SizedBox(
+                    width: constraints.maxWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Apenas o conteúdo do formulário fica rolável
+                        Flexible(
+                          child: SingleChildScrollView(
+                            padding: EdgeInsets.only(
+                                bottom: MediaQuery.of(context).viewInsets.bottom),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Placa: $placa',
+                                  style: TextStyle(color: primaryColor),
+                                ),
+                                SizedBox(height: 12),
+                                TextField(
+                                  onChanged: (value) {
+                                    setState(() {
+                                      nome = value.trim().isEmpty
+                                          ? ''
+                                          : transformPrimeiraLetraNome(value)
+                                          .trim();
+                                      validateFields();
+                                    });
+                                  },
+                                  decoration: InputDecoration(
+                                    labelText: 'Proprietário',
+                                    labelStyle: TextStyle(color: primaryColor),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                      BorderSide(color: primaryColor),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                      BorderSide(color: accentColor),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 12),
+                                TextField(
+                                  controller: telefoneController,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      validateFields();
+                                    });
+                                  },
+                                  decoration: InputDecoration(
+                                    labelText: 'Celular',
+                                    labelStyle: TextStyle(color: primaryColor),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                      BorderSide(color: primaryColor),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                      BorderSide(color: accentColor),
+                                    ),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                                SizedBox(height: 12),
+                                TextField(
+                                  controller: whatsappController,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      validateFields();
+                                    });
+                                  },
+                                  decoration: InputDecoration(
+                                    labelText: 'WhatsApp',
+                                    labelStyle: TextStyle(color: primaryColor),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                      BorderSide(color: primaryColor),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                      BorderSide(color: accentColor),
+                                    ),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                      ],
                     ),
-                    SizedBox(height: 12),
-                    TextField(
-                      onChanged: (value) {
-                        setState(() {
-                          // Verifica se o campo está vazio
-                          nome = value.trim().isEmpty
-                              ? ''
-                              : transformPrimeiraLetraNome(value).trim(); // Transforma e remove espaços
-                          validateFields(); // Chama a função para validar os campos
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Proprietário',
-                        labelStyle: TextStyle(color: primaryColor),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: accentColor),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    TextField(
-                      controller: telefoneController,
-                      onChanged: (value) {
-                        setState(() {
-                          validateFields();
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Celular',
-                        labelStyle: TextStyle(color: primaryColor),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: accentColor),
-                        ),
-                      ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    SizedBox(height: 12),
-                    TextField(
-                      controller: whatsappController,
-                      onChanged: (value) {
-                        setState(() {
-                          validateFields();
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'WhatsApp',
-                        labelStyle: TextStyle(color: primaryColor),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: accentColor),
-                        ),
-                      ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
               actions: [
-                // Botão "Cancelar" primeiro agora
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
@@ -796,18 +850,16 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                   onPressed: isButtonEnabled
                       ? () async {
                     try {
-                      // Tente inserir o veículo
                       await DatabaseHelper().insertVehicle(
                         placa,
                         nome,
                         telefoneController.text,
                         whatsappController.text,
                       );
-                      // Se for bem-sucedido, mostre o diálogo de sucesso
                       Navigator.of(context).pop();
-                      showSuccessDialog(context, 'Os dados foram cadastrados com sucesso.');
+                      showSuccessDialog(
+                          context, 'Os dados foram cadastrados com sucesso.');
                     } catch (e) {
-                      // Se ocorrer um erro, mostre um diálogo de erro
                       showErrorDialog(context, 'Erro ao cadastrar veículo: $e');
                     }
                   }
@@ -916,13 +968,17 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     );
   }
 
-  Future<void> showEditForm(Map<String, dynamic> vehicleData) async {
+  Future<String?> showEditForm(Map<String, dynamic> vehicleData) async {
     String placa = vehicleData['placa'];
 
-    TextEditingController placaController = TextEditingController(text: vehicleData['placa']);
-    TextEditingController nomeController = TextEditingController(text: vehicleData['nome']);
-    MaskedTextController telefoneController = MaskedTextController(mask: '+55 (00) 00000-0000', text: vehicleData['telefone']);
-    MaskedTextController whatsappController = MaskedTextController(mask: '+55 (00) 00000-0000', text: vehicleData['whatsapp']);
+    TextEditingController placaController = TextEditingController(
+        text: vehicleData['placa']);
+    TextEditingController nomeController = TextEditingController(
+        text: vehicleData['nome']);
+    MaskedTextController telefoneController = MaskedTextController(
+        mask: '+55 (00) 00000-0000', text: vehicleData['telefone']);
+    MaskedTextController whatsappController = MaskedTextController(
+        mask: '+55 (00) 00000-0000', text: vehicleData['whatsapp']);
 
     bool isButtonEnabled = false;
 
@@ -930,27 +986,33 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     void validateFields(StateSetter setState) {
       setState(() {
         String nome = nomeController.text;
-        bool placaValida = placaController.text.length == 7;
-        bool camposValidos = validarCampos(nome, telefoneController, whatsappController);
+        bool placaValida = placaController.text.length == 7 &&
+            validFormatPlate(placaController.text);
+        bool camposValidos = validarCampos(
+            nome, telefoneController, whatsappController);
         isButtonEnabled = placaValida && camposValidos;
       });
     }
 
-    await showDialog(
+    return await showDialog<String>(
       context: context,
-      barrierDismissible: false, // Impede fechar clicando fora do diálogo
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return AlertDialog(
               title: Text(
                 'Editar Veículo',
-                style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: primaryColor, fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                padding: EdgeInsets.only(bottom: MediaQuery
+                    .of(context)
+                    .viewInsets
+                    .bottom),
                 child: Container(
-                  constraints: BoxConstraints(maxHeight: 400), // Limite a altura
+                  constraints: BoxConstraints(maxHeight: 400),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -970,7 +1032,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         textCapitalization: TextCapitalization.characters,
                         maxLength: 7,
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z0-9]')),
                           LengthLimitingTextInputFormatter(7),
                         ],
                         onChanged: (value) {
@@ -994,10 +1057,12 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         ),
                         onChanged: (value) {
                           setState(() {
-                            nomeController.value = nomeController.value.copyWith(
-                              text: transformPrimeiraLetraNome(value),
-                              selection: TextSelection.collapsed(offset: value.length),
-                            );
+                            nomeController.value =
+                                nomeController.value.copyWith(
+                                  text: transformPrimeiraLetraNome(value),
+                                  selection: TextSelection.collapsed(
+                                      offset: value.length),
+                                );
                             validateFields(setState);
                           });
                         },
@@ -1045,7 +1110,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop();
+                    Navigator.of(context).pop(); // Fechar o diálogo
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: primaryColor,
@@ -1064,8 +1129,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                   onPressed: isButtonEnabled
                       ? () async {
                     try {
-                      print('Antes Botão de Salvar clicado!');
-                      // Atualiza os valores no editableVehicleData com os valores dos controladores
+                      // Atualiza os valores no banco de dados
                       await DatabaseHelper().updateVehicle(
                         placa,
                         placaController.text,
@@ -1073,10 +1137,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
                         telefoneController.text,
                         whatsappController.text,
                       );
-                      print('Depois Botão de Salvar clicado!');
-                      Navigator.of(context).pop();
-                      refreshVehicleDetails(placaController.text);
-                      showSuccessDialog(context, 'Veículo atualizado com sucesso!');
+                      Navigator.of(context).pop(
+                          placaController.text); // Retorna a nova placa
                     } catch (e) {
                       print('Erro: $e');
                       showErrorDialog(context, 'Erro ao atualizar veículo: $e');
@@ -1127,7 +1189,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   }
 
   Future<void> verificarPlacasCadastradas() async {
-    final List<Map<String, dynamic>> placas = await DatabaseHelper().getAllVehicles();
+    final List<Map<String, dynamic>> placas = await DatabaseHelper()
+        .getAllVehicles();
 
     // Função para construir o botão de fechar na parte inferior
     Widget buildCloseButton(BuildContext context) {
@@ -1141,8 +1204,10 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
             foregroundColor: primaryColor,
             backgroundColor: secondaryColor,
             padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            elevation: 4, // Elevação para sombreamento do botão
-            shadowColor: Colors.black.withOpacity(0.4), // Cor da sombra do botão
+            elevation: 4,
+            // Elevação para sombreamento do botão
+            shadowColor: Colors.black.withOpacity(
+                0.4), // Cor da sombra do botão
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1161,7 +1226,8 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     Widget buildModalContent(BuildContext context) {
       if (placas.isEmpty) {
         return Center(
-          child: Text('Nenhuma placa cadastrada.', style: TextStyle(color: contentTextColor)),
+          child: Text('Nenhuma placa cadastrada.',
+              style: TextStyle(color: contentTextColor)),
         );
       } else {
         return ListView.builder(
@@ -1216,17 +1282,21 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
           child: Scaffold(
             // Fundo transparente para o Scaffold
             body: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12.0, vertical: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(height: 24),
                   Text(
                     'Placas Cadastradas',
-                    style: TextStyle(color: titleColor, fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: titleColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
-                  Expanded(child: buildModalContent(context)), // Lista de placas
+                  Expanded(child: buildModalContent(context)),
+                  // Lista de placas
                 ],
               ),
             ),
@@ -1319,111 +1389,118 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
           style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
         ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo do estacionamento
-            Icon(
-              Icons.local_parking, // Ou use Image.asset('path/to/logo.png')
-              color: primaryColor,
-              size: 100, // Ajuste o tamanho do ícone
-            ),
-            SizedBox(height: 16), // Espaçamento entre o ícone e o título
-
-            // Texto Estacionamento
-            Text(
-              'Estacionamento',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+      resizeToAvoidBottomInset: true,
+      // Ajusta o layout quando o teclado aparece
+      body: SingleChildScrollView( // Permite rolar o conteúdo quando necessário
+        padding: EdgeInsets.only(bottom: MediaQuery
+            .of(context)
+            .viewInsets
+            .bottom), // Ajusta o conteúdo ao teclado
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Logo do estacionamento
+              Icon(
+                Icons.local_parking, // Ou use Image.asset('path/to/logo.png')
                 color: primaryColor,
+                size: 100, // Ajuste o tamanho do ícone
               ),
-            ),
-            SizedBox(height: 40), // Espaçamento entre o título e os botões
+              SizedBox(height: 16), // Espaçamento entre o ícone e o título
 
-            // Botão para Capturar Placa
-            Container(
-              width: 200, // Largura fixa para uniformidade
-              child: ElevatedButton(
-                onPressed: pickImage,
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: buttonTextColor,
-                  backgroundColor: buttonBackgroundColor,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                        30), // Bordas arredondadas
+              // Texto Estacionamento
+              Text(
+                'Estacionamento',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
+                ),
+              ),
+              SizedBox(height: 40), // Espaçamento entre o título e os botões
+
+              // Botão para Capturar Placa
+              Container(
+                width: 200, // Largura fixa para uniformidade
+                child: ElevatedButton(
+                  onPressed: pickImage,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: buttonTextColor,
+                    backgroundColor: buttonBackgroundColor,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                          30), // Bordas arredondadas
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.camera_alt, color: buttonIconColor),
+                      SizedBox(width: 8),
+                      Text('Capturar Placa', style: buttonTextStyle),
+                    ],
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.camera_alt, color: buttonIconColor),
-                    SizedBox(width: 8),
-                    Text('Capturar Placa', style: buttonTextStyle),
-                  ],
-                ),
               ),
-            ),
-            SizedBox(height: 16),
+              SizedBox(height: 16),
 
-            // Botão para Cadastrar Placas
-            Container(
-              width: 200,
-              child: ElevatedButton(
-                onPressed: () {
-                  editPlateDialog(context, plate);
-                },
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: buttonTextColor,
-                  backgroundColor: buttonBackgroundColor,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+              // Botão para Cadastrar Placas
+              Container(
+                width: 200,
+                child: ElevatedButton(
+                  onPressed: () {
+                    editPlateDialog(context, plate);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: buttonTextColor,
+                    backgroundColor: buttonBackgroundColor,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: buttonIconColor),
+                      SizedBox(width: 8),
+                      Text('Cadastrar Placas', style: buttonTextStyle),
+                    ],
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add, color: buttonIconColor),
-                    SizedBox(width: 8),
-                    Text('Cadastrar Placas', style: buttonTextStyle),
-                  ],
-                ),
               ),
-            ),
-            SizedBox(height: 16),
+              SizedBox(height: 16),
 
-            // Botão para Placas Cadastradas
-            Container(
-              width: 200,
-              child: ElevatedButton(
-                onPressed: verificarPlacasCadastradas,
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: buttonTextColor,
-                  backgroundColor: buttonBackgroundColor,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+              // Botão para Placas Cadastradas
+              Container(
+                width: 200,
+                child: ElevatedButton(
+                  onPressed: verificarPlacasCadastradas,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: buttonTextColor,
+                    backgroundColor: buttonBackgroundColor,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.list, color: buttonIconColor),
+                      SizedBox(width: 8),
+                      Text('Placas Cadastradas', style: buttonTextStyle),
+                    ],
                   ),
                 ),
-
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.list, color: buttonIconColor),
-                    SizedBox(width: 8),
-                    Text('Placas Cadastradas', style: buttonTextStyle),
-                  ],
-                ),
               ),
-            ),
-            SizedBox(height: 20),
-
-            // Texto de reconhecimento
-            Text(recognizedText, style: TextStyle(fontSize: 18)),
-          ],
+              SizedBox(height: 20),
+              // Texto de reconhecimento
+              Text(recognizedText, style: TextStyle(fontSize: 18)),
+            ],
+          ),
         ),
       ),
     );
