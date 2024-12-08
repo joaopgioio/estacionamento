@@ -1,7 +1,7 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // O plugin do Flutter deve ser aplicado após os plugins do Android e Kotlin.
     id "dev.flutter.flutter-gradle-plugin"
 }
 
@@ -21,18 +21,27 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "br.com.gioio.estacionamento"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        release {
+            if (project.hasProperty('keyStorePassword')) {
+                storeFile file(project.hasProperty('keyStoreFile') ? project.keyStoreFile : "C:/Users/jpalves/StudioProjects/estacionamento/keystores/my-release-key.jks")  // Caminho para o seu keystore
+                storePassword project.keyStorePassword  // Senha do keystore
+                keyAlias project.keyAlias  // Alias da chave
+                keyPassword project.keyPassword  // Senha da chave
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release  // Aplica a configuração de assinatura ao build de release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -51,17 +60,14 @@ android {
         }
         dependencies {
             classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-            classpath 'com.android.tools.build:gradle:7.0.0'  // Verifique se esta versão é compatível com o seu projeto
-            // Outros classpaths necessários
+            classpath 'com.android.tools.build:gradle:7.0.4'  // Verifique se esta versão é compatível com o seu projeto
         }
     }
-
 }
 
 flutter {
     source = "../.."
 }
-
 
 // Adicionando o task para configurar o compilador Java
 tasks.withType(JavaCompile) {

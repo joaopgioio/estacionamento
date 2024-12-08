@@ -1,13 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_masked_text2/flutter_masked_text2.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'dart:io';
+import 'dart:convert';
 import 'ocr_utils.dart';
 import 'database_helper.dart';
-import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_masked_text2/flutter_masked_text2.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class PlacaRecognitionScreen extends StatefulWidget {
   @override
@@ -32,6 +37,184 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
   static const Color primaryColor = Color(0xFFEC995B);
   static const Color secondaryColor = Color(0xFFFFF2E8);
   static const Color accentColor = Color(0xFFE47724);
+
+  @override
+  void initState() {
+    super.initState();
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    var status = await Permission.storage.request();
+    if (status.isGranted) {
+      print("Permissão de armazenamento concedida.");
+    } else if (status.isDenied) {
+      print("Permissão de armazenamento negada.");
+    } else if (status.isPermanentlyDenied) {
+      print("Permissão de armazenamento permanentemente negada. Abrindo configurações...");
+      openAppSettings();
+    }
+  }
+
+Future<int> _getAndroidSdkVersion() async {
+  try {
+    final deviceInfo = DeviceInfoPlugin();
+    final androidInfo = await deviceInfo.androidInfo;
+    return androidInfo.version.sdkInt; // Retorna a versão do SDK
+  } catch (e) {
+    debugPrint('Erro ao obter a versão do SDK via DeviceInfo: $e');
+    return 0; // Valor padrão em caso de erro
+  }
+}
+
+// Função para exportar dados para JSON
+Future<void> exportToJson(BuildContext context) async {
+  try {
+    bool storagePermissionGranted = false;
+
+    if (Platform.isAndroid) {
+      int sdkVersion = await _getAndroidSdkVersion();
+
+      if (sdkVersion >= 30) {
+        // Para Android 11+ (incluindo Android 14), solicita MANAGE_EXTERNAL_STORAGE
+        PermissionStatus manageStorageStatus = await Permission.manageExternalStorage.request();
+
+        if (manageStorageStatus.isGranted) {
+          storagePermissionGranted = true;
+        } else if (manageStorageStatus.isPermanentlyDenied) {
+          // Usuário negou permanentemente a permissão, abrir configurações
+          await openAppSettings();
+          showErrorDialog(context, 'Permissão de armazenamento necessária foi negada permanentemente.');
+          return;
+        }
+      } else {
+        // Para Android 10 ou inferior
+        storagePermissionGranted = await Permission.storage.request().isGranted;
+      }
+    } else {
+      // Outras plataformas (iOS, desktop), permissão é tratada automaticamente
+      storagePermissionGranted = true;
+    }
+
+    // Continua a exportação se a permissão foi concedida
+    if (storagePermissionGranted) {
+      // Obtém os dados do banco de dados
+      final data = await DatabaseHelper().getAllVehicles();
+
+      // Converte os dados para JSON
+      final jsonString = jsonEncode(data);
+
+      // Obtém o diretório Downloads (diretório público no Android)
+      final directory = Directory('/storage/emulated/0/Download');
+      if (!directory.existsSync()) {
+        showErrorDialog(context, 'Não foi possível acessar o diretório de Downloads.');
+        return;
+      }
+
+      // Cria o arquivo no diretório Downloads
+      final file = File('${directory.path}/registro_placa.json');
+      await file.writeAsString(jsonString);
+
+      // Mostra mensagem de sucesso
+      showSuccessDialog(context, 'Dados exportados com sucesso para: ${file.path}');
+    } else {
+      showErrorDialog(context, 'Permissão de armazenamento negada. Não é possível exportar os dados.');
+    }
+  } catch (error) {
+    // Mostra mensagem de erro caso algo falhe
+    showErrorDialog(context, 'Erro ao exportar dados: $error');
+  }
+}
+
+// Função para importar dados de um arquivo JSON
+Future<void> importFromJson(BuildContext context) async {
+  try {
+    // Verifica a permissão de armazenamento
+    bool storagePermissionGranted = false;
+
+    if (Platform.isAndroid) {
+      int sdkVersion = await _getAndroidSdkVersion();
+
+      if (sdkVersion >= 33) {
+        // Android 13 e acima: permissões de mídia
+        PermissionStatus photosStatus = await Permission.photos.request();
+        PermissionStatus mediaStatus = await Permission.videos.request();
+
+        if (photosStatus.isGranted && mediaStatus.isGranted) {
+          storagePermissionGranted = true;
+        } else if (photosStatus.isPermanentlyDenied || mediaStatus.isPermanentlyDenied) {
+          // Permissão negada permanentemente
+          await openAppSettings();
+          showErrorDialog(context, 'Permissões necessárias negadas permanentemente.');
+          return;
+        }
+      } else {
+        // Android 12 e abaixo: permissão de armazenamento
+        storagePermissionGranted = await Permission.storage.request().isGranted;
+      }
+    } else {
+      // Outras plataformas
+      storagePermissionGranted = true;
+    }
+
+    // Se a permissão foi concedida
+    if (storagePermissionGranted) {
+      // Usa o FilePicker para selecionar o arquivo JSON
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'], // Apenas arquivos .json
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+
+        if (await file.exists()) {
+          // Lê e decodifica o conteúdo do arquivo JSON
+          final jsonString = await file.readAsString();
+          final List<dynamic> data = jsonDecode(jsonString);
+
+          int insertedCount = 0;
+
+          for (var item in data) {
+            // Valida o formato dos dados
+            if (item is Map<String, dynamic> &&
+                item.containsKey('placa') &&
+                item.containsKey('nome') &&
+                item.containsKey('telefone') &&
+                item.containsKey('whatsapp')) {
+              // Verifica se o veículo já existe
+              bool exists = await DatabaseHelper().vehicleExists(item['placa']);
+              if (!exists) {
+                // Insere o veículo no banco de dados
+                await DatabaseHelper().insertVehicle(
+                  item['placa'],
+                  item['nome'],
+                  item['telefone'],
+                  item['whatsapp'],
+                );
+                insertedCount++;
+              }
+            }
+          }
+
+          // Exibe o resultado ao usuário
+          showSuccessDialog(
+            context,
+            '$insertedCount registros foram cadastrados com sucesso!',
+          );
+        } else {
+          showErrorDialog(context, 'O arquivo selecionado não foi encontrado.');
+        }
+      } else {
+        showErrorDialog(context, 'Nenhum arquivo foi selecionado.');
+      }
+    } else {
+      showErrorDialog(context, 'Permissão de armazenamento negada.');
+    }
+  } catch (error) {
+    showErrorDialog(context, 'Erro ao importar dados do JSON: $error');
+  }
+}
 
   void makeCall(String phone, BuildContext context) async {
     final Uri url = Uri(scheme: 'tel', path: phone);
@@ -100,17 +283,17 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
 
       if (isValidPlate(text)) {
         String placa = enviaPlaca(text);
-        print("Caiu no isValidPlate: $placa");
+        //print("Caiu no isValidPlate: $placa");
         if (placa == 'Nenhuma placa encontrada') {
           showRetryDialog(context); // Exibe o diálogo para tentar novamente
         } else {
-          print("Caiu no else do isValidPlate: $placa");
+          //print("Caiu no else do isValidPlate: $placa");
           //text = placa!; // Normaliza ou converte a placa para o formato desejado
           showConfirmationDialog(
               context, placa); // Exibe o diálogo de confirmação
         }
       } else {
-        print("Caiu no else isValidPlate.");
+        //print("Caiu no else isValidPlate.");
         showRetryDialog(context); // Exibe o diálogo para tentar novamente
       }
     }
@@ -261,7 +444,7 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
       }
     } catch (e) {
       // Trata erros que podem ocorrer durante a execução
-      print('Erro ao processar a placa: $e');
+      //print('Erro ao processar a placa: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ocorreu um erro ao processar a placa.')),
       );
@@ -484,226 +667,202 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     );
   }
 
-  void showVehicleDetails(Map<String, dynamic> vehicleData) {
-    showDialog(
-      context: context,
-      barrierDismissible: false, // Impede fechar clicando fora do diálogo
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Detalhes do Veículo',
-            style: TextStyle(
-              color: primaryColor,
-              fontWeight: FontWeight.bold,
-            ),
+void showVehicleDetails(Map<String, dynamic> vehicleData) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text(
+          'Detalhes do Veículo',
+          style: TextStyle(
+            color: primaryColor,
+            fontWeight: FontWeight.bold,
           ),
-          content: SingleChildScrollView( // Adiciona rolagem se necessário
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Placa:', style: TextStyle(color: primaryColor)),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        vehicleData['placa'] ?? '',
-                        textAlign: TextAlign.left,
-                      ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Placa:', style: TextStyle(color: primaryColor)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(vehicleData['placa'] ?? ''),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Proprietário:', style: TextStyle(color: primaryColor)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(vehicleData['nome'] ?? ''),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Celular:', style: TextStyle(color: primaryColor)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(vehicleData['telefone'] ?? ''),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('WhatsApp:', style: TextStyle(color: primaryColor)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(vehicleData['whatsapp'] ?? ''),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      if (vehicleData['telefone'] != null &&
+                          vehicleData['telefone'].isNotEmpty) {
+                        makeCall(vehicleData['telefone'], context);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Número de celular não disponível.')),
+                        );
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: primaryColor,
+                      backgroundColor: secondaryColor,
+                      padding: EdgeInsets.symmetric(vertical: 12),
                     ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                        'Proprietário:', style: TextStyle(color: primaryColor)),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        vehicleData['nome'] ?? '',
-                        textAlign: TextAlign.left,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Icon(Icons.phone, color: accentColor),
+                        SizedBox(width: 8),
+                        Text('Ligar'),
+                      ],
                     ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Celular:', style: TextStyle(color: primaryColor)),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        vehicleData['telefone'] ?? '',
-                        textAlign: TextAlign.left,
-                      ),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      if (vehicleData['whatsapp'] != null &&
+                          vehicleData['whatsapp'].isNotEmpty) {
+                        openWhatsApp(vehicleData['whatsapp'], context);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Número do WhatsApp não disponível.')),
+                        );
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: primaryColor,
+                      backgroundColor: secondaryColor,
+                      padding: EdgeInsets.symmetric(vertical: 12),
                     ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('WhatsApp:', style: TextStyle(color: primaryColor)),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        vehicleData['whatsapp'] ?? '',
-                        textAlign: TextAlign.left,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        FaIcon(FontAwesomeIcons.whatsapp, color: accentColor),
+                        SizedBox(width: 8),
+                        Text('WhatsApp'),
+                      ],
                     ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        if (vehicleData['telefone'] != null &&
-                            vehicleData['telefone'].isNotEmpty) {
-                          makeCall(vehicleData['telefone'], context);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(
-                                'Número de celular não disponível.')),
-                          );
-                        }
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: primaryColor,
-                        backgroundColor: secondaryColor,
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Icon(Icons.phone, color: accentColor),
-                          SizedBox(width: 8),
-                          Text('Ligar'),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 10), // Espaçamento entre os botões
-                    TextButton(
-                      onPressed: () {
-                        if (vehicleData['whatsapp'] != null &&
-                            vehicleData['whatsapp'].isNotEmpty) {
-                          openWhatsApp(vehicleData['whatsapp'], context);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(
-                                'Número do WhatsApp não disponível.')),
-                          );
-                        }
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: primaryColor,
-                        backgroundColor: secondaryColor,
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          FaIcon(FontAwesomeIcons.whatsapp, color: accentColor),
-                          SizedBox(width: 8),
-                          Text('WhatsApp'),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 10), // Espaçamento entre os botões
-                    TextButton(
-                      onPressed: () async {
-                        // Captura a nova placa editada
-                        String? updatedPlaca = await showEditForm(vehicleData);
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.of(context).pop(); // Fecha a tela de detalhes
 
-                        if (updatedPlaca != null && updatedPlaca.isNotEmpty) {
-                          // Fecha o diálogo de detalhes
-                          Navigator.of(context).pop();
+                      String? updatedPlaca = await showEditForm(vehicleData);
 
-                          // Atualiza os detalhes com a nova placa
-                          refreshVehicleDetails(
-                              updatedPlaca); // Passa a nova placa para a função de atualização
-                        } else {
-                          // Mostra uma mensagem de erro se a placa for inválida
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('A placa não pode estar vazia.')),
-                          );
-                        }
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: primaryColor,
-                        backgroundColor: secondaryColor,
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Icon(Icons.edit, color: accentColor),
-                          SizedBox(width: 8),
-                          Text('Editar'),
-                        ],
-                      ),
+                      if (updatedPlaca == null) {
+                        // Usuário clicou em "Cancelar" na edição, reabre a tela de detalhes com dados originais
+                        showVehicleDetails(vehicleData);
+                      } else if (updatedPlaca.isNotEmpty) {
+                        // Usuário clicou em "Salvar", exibe mensagem de sucesso e atualiza os dados
+                        showSuccessDialog(context, 'Dados atualizados com sucesso.');
+                        refreshVehicleDetails(updatedPlaca);
+                      } else {
+                        // Caso de erro na atualização
+                        showErrorDialog(context, 'A placa não pode estar vazia.');
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: primaryColor,
+                      backgroundColor: secondaryColor,
+                      padding: EdgeInsets.symmetric(vertical: 12),
                     ),
-                    SizedBox(height: 10), // Espaçamento entre os botões
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(); // Fecha o diálogo
-                        showDeleteConfirmationDialog(vehicleData['placa']);
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: primaryColor,
-                        backgroundColor: secondaryColor,
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Icon(Icons.delete, color: accentColor),
-                          SizedBox(width: 8),
-                          Text('Remover'),
-                        ],
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Icon(Icons.edit, color: accentColor),
+                        SizedBox(width: 8),
+                        Text('Editar'),
+                      ],
                     ),
-                    SizedBox(height: 20), // Espaçamento antes do botão fechar
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(); // Fecha o diálogo
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: closeButtonTextColor,
-                        // Cor do texto
-                        backgroundColor: closeButtonColor,
-                        // Cor do fundo do botão
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12, // Ajustando o espaçamento do botão
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.close, color: closeButtonIconColor),
-                          // Ícone de fechar
-                          SizedBox(width: 8),
-                          // Espaçamento entre o ícone e o texto
-                          Text('Fechar'),
-                        ],
-                      ),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      showDeleteConfirmationDialog(vehicleData['placa']);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: primaryColor,
+                      backgroundColor: secondaryColor,
+                      padding: EdgeInsets.symmetric(vertical: 12),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Icon(Icons.delete, color: accentColor),
+                        SizedBox(width: 8),
+                        Text('Remover'),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Fecha o diálogo
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: closeButtonTextColor,
+                      backgroundColor: closeButtonColor,
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.close, color: closeButtonIconColor),
+                        SizedBox(width: 8),
+                        Text('Fechar'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   void showRegistrationForm(String placa) {
     String nome = '';
@@ -968,203 +1127,188 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     );
   }
 
-  Future<String?> showEditForm(Map<String, dynamic> vehicleData) async {
-    String placa = vehicleData['placa'];
+Future<String?> showEditForm(Map<String, dynamic> vehicleData) async {
+  String placa = vehicleData['placa'];
+  TextEditingController placaController = TextEditingController(text: vehicleData['placa']);
+  TextEditingController nomeController = TextEditingController(text: vehicleData['nome']);
+  MaskedTextController telefoneController = MaskedTextController(
+    mask: '+55 (00) 00000-0000',
+    text: vehicleData['telefone'],
+  );
+  MaskedTextController whatsappController = MaskedTextController(
+    mask: '+55 (00) 00000-0000',
+    text: vehicleData['whatsapp'],
+  );
 
-    TextEditingController placaController = TextEditingController(
-        text: vehicleData['placa']);
-    TextEditingController nomeController = TextEditingController(
-        text: vehicleData['nome']);
-    MaskedTextController telefoneController = MaskedTextController(
-        mask: '+55 (00) 00000-0000', text: vehicleData['telefone']);
-    MaskedTextController whatsappController = MaskedTextController(
-        mask: '+55 (00) 00000-0000', text: vehicleData['whatsapp']);
+  bool isButtonEnabled = false;
 
-    bool isButtonEnabled = false;
-
-    // Função para validar se o botão pode ser habilitado
-    void validateFields(StateSetter setState) {
-      setState(() {
-        String nome = nomeController.text;
-        bool placaValida = placaController.text.length == 7 &&
-            validFormatPlate(placaController.text);
-        bool camposValidos = validarCampos(
-            nome, telefoneController, whatsappController);
-        isButtonEnabled = placaValida && camposValidos;
-      });
-    }
-
-    return await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: Text(
-                'Editar Veículo',
-                style: TextStyle(
-                    color: primaryColor, fontWeight: FontWeight.bold),
-              ),
-              content: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: MediaQuery
-                    .of(context)
-                    .viewInsets
-                    .bottom),
-                child: Container(
-                  constraints: BoxConstraints(maxHeight: 400),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: placaController,
-                        decoration: InputDecoration(
-                          labelText: 'Placa',
-                          labelStyle: TextStyle(color: primaryColor),
-                          counterText: "",
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: primaryColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: accentColor),
-                          ),
-                        ),
-                        textCapitalization: TextCapitalization.characters,
-                        maxLength: 7,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r'[a-zA-Z0-9]')),
-                          LengthLimitingTextInputFormatter(7),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            validateFields(setState);
-                          });
-                        },
-                      ),
-                      SizedBox(height: 12),
-                      TextField(
-                        controller: nomeController,
-                        decoration: InputDecoration(
-                          labelText: 'Proprietário',
-                          labelStyle: TextStyle(color: primaryColor),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: primaryColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: accentColor),
-                          ),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            nomeController.value =
-                                nomeController.value.copyWith(
-                                  text: transformPrimeiraLetraNome(value),
-                                  selection: TextSelection.collapsed(
-                                      offset: value.length),
-                                );
-                            validateFields(setState);
-                          });
-                        },
-                      ),
-                      SizedBox(height: 12),
-                      TextField(
-                        controller: telefoneController,
-                        onChanged: (value) {
-                          validateFields(setState);
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'Celular',
-                          labelStyle: TextStyle(color: primaryColor),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: primaryColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: accentColor),
-                          ),
-                        ),
-                        keyboardType: TextInputType.phone,
-                      ),
-                      SizedBox(height: 12),
-                      TextField(
-                        controller: whatsappController,
-                        onChanged: (value) {
-                          validateFields(setState);
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'WhatsApp',
-                          labelStyle: TextStyle(color: primaryColor),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: primaryColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: accentColor),
-                          ),
-                        ),
-                        keyboardType: TextInputType.phone,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Fechar o diálogo
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: primaryColor,
-                    backgroundColor: secondaryColor,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.cancel, color: accentColor),
-                      SizedBox(width: 8),
-                      Text('Cancelar'),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: isButtonEnabled
-                      ? () async {
-                    try {
-                      // Atualiza os valores no banco de dados
-                      await DatabaseHelper().updateVehicle(
-                        placa,
-                        placaController.text,
-                        nomeController.text,
-                        telefoneController.text,
-                        whatsappController.text,
-                      );
-                      Navigator.of(context).pop(
-                          placaController.text); // Retorna a nova placa
-                    } catch (e) {
-                      print('Erro: $e');
-                      showErrorDialog(context, 'Erro ao atualizar veículo: $e');
-                    }
-                  }
-                      : null,
-                  style: TextButton.styleFrom(
-                    foregroundColor: primaryColor,
-                    backgroundColor: secondaryColor,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.save, color: accentColor),
-                      SizedBox(width: 8),
-                      Text('Salvar'),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+  void validateFields(StateSetter setState) {
+    setState(() {
+      String nome = nomeController.text;
+      bool placaValida = placaController.text.length == 7 && validFormatPlate(placaController.text);
+      bool camposValidos = validarCampos(nome, telefoneController, whatsappController);
+      isButtonEnabled = placaValida && camposValidos;
+    });
   }
+
+  return await showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: Text(
+              'Editar Veículo',
+              style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: placaController,
+                      decoration: InputDecoration(
+                        labelText: 'Placa',
+                        labelStyle: TextStyle(color: primaryColor),
+                        counterText: "",
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: accentColor),
+                        ),
+                      ),
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 7,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                        LengthLimitingTextInputFormatter(7),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          validateFields(setState);
+                        });
+                      },
+                    ),
+                    SizedBox(height: 12),
+                    TextField(
+                      controller: nomeController,
+                      decoration: InputDecoration(
+                        labelText: 'Proprietário',
+                        labelStyle: TextStyle(color: primaryColor),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: accentColor),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          nomeController.value = nomeController.value.copyWith(
+                            text: transformPrimeiraLetraNome(value),
+                            selection: TextSelection.collapsed(offset: value.length),
+                          );
+                          validateFields(setState);
+                        });
+                      },
+                    ),
+                    SizedBox(height: 12),
+                    TextField(
+                      controller: telefoneController,
+                      onChanged: (value) {
+                        validateFields(setState);
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Celular',
+                        labelStyle: TextStyle(color: primaryColor),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: accentColor),
+                        ),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 12),
+                    TextField(
+                      controller: whatsappController,
+                      onChanged: (value) {
+                        validateFields(setState);
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'WhatsApp',
+                        labelStyle: TextStyle(color: primaryColor),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: primaryColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: accentColor),
+                        ),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: primaryColor,
+                  backgroundColor: secondaryColor,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cancel, color: accentColor),
+                    SizedBox(width: 8),
+                    Text('Cancelar'),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: isButtonEnabled
+                    ? () async {
+                        try {
+                          await DatabaseHelper().updateVehicle(
+                            placa,
+                            placaController.text,
+                            nomeController.text,
+                            telefoneController.text,
+                            whatsappController.text,
+                          );
+                          Navigator.of(context).pop(placaController.text);
+                        } catch (e) {
+                          showErrorDialog(context, 'Erro ao atualizar veículo: $e');
+                        }
+                      }
+                    : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: primaryColor,
+                  backgroundColor: secondaryColor,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.save, color: accentColor),
+                    SizedBox(width: 8),
+                    Text('Salvar'),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   void refreshVehicleDetails(String placa) async {
     // Obtém os dados atualizados do veículo com base na placa
@@ -1378,131 +1522,187 @@ class PlacaRecognitionScreenState extends State<PlacaRecognitionScreen> {
     );
   }
 
-  String plate = "";
+String plate = "";
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Estacionamento',
-          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
-        ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(
+        'Estacionamento',
+        style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
       ),
-      resizeToAvoidBottomInset: true,
-      // Ajusta o layout quando o teclado aparece
-      body: SingleChildScrollView( // Permite rolar o conteúdo quando necessário
-        padding: EdgeInsets.only(bottom: MediaQuery
-            .of(context)
-            .viewInsets
-            .bottom), // Ajusta o conteúdo ao teclado
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo do estacionamento
-              Icon(
-                Icons.local_parking, // Ou use Image.asset('path/to/logo.png')
+    ),
+    resizeToAvoidBottomInset: true,
+    body: SingleChildScrollView(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.local_parking,
+              color: primaryColor,
+              size: 100,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Estacionamento',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
                 color: primaryColor,
-                size: 100, // Ajuste o tamanho do ícone
               ),
-              SizedBox(height: 16), // Espaçamento entre o ícone e o título
+            ),
+            SizedBox(height: 40),
 
-              // Texto Estacionamento
-              Text(
-                'Estacionamento',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              SizedBox(height: 40), // Espaçamento entre o título e os botões
-
-              // Botão para Capturar Placa
-              Container(
-                width: 200, // Largura fixa para uniformidade
-                child: ElevatedButton(
-                  onPressed: pickImage,
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: buttonTextColor,
-                    backgroundColor: buttonBackgroundColor,
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                          30), // Bordas arredondadas
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt, color: buttonIconColor),
-                      SizedBox(width: 8),
-                      Text('Capturar Placa', style: buttonTextStyle),
-                    ],
+            // Botão para Capturar Placa
+            Container(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: pickImage,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: buttonTextColor,
+                  backgroundColor: buttonBackgroundColor,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-              ),
-              SizedBox(height: 16),
-
-              // Botão para Cadastrar Placas
-              Container(
-                width: 200,
-                child: ElevatedButton(
-                  onPressed: () {
-                    editPlateDialog(context, plate);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: buttonTextColor,
-                    backgroundColor: buttonBackgroundColor,
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add, color: buttonIconColor),
-                      SizedBox(width: 8),
-                      Text('Cadastrar Placas', style: buttonTextStyle),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 16),
+                    Icon(Icons.camera_alt, color: buttonIconColor),
+                    SizedBox(width: 12),
+                    Text('Capturar Placa', style: buttonTextStyle),
+                  ],
                 ),
               ),
-              SizedBox(height: 16),
+            ),
+            SizedBox(height: 16),
 
-              // Botão para Placas Cadastradas
-              Container(
-                width: 200,
-                child: ElevatedButton(
-                  onPressed: verificarPlacasCadastradas,
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: buttonTextColor,
-                    backgroundColor: buttonBackgroundColor,
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.list, color: buttonIconColor),
-                      SizedBox(width: 8),
-                      Text('Placas Cadastradas', style: buttonTextStyle),
-                    ],
+            // Botão para Cadastrar Placas
+            Container(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  editPlateDialog(context, plate);
+                },
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: buttonTextColor,
+                  backgroundColor: buttonBackgroundColor,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 16),
+                    Icon(Icons.add, color: buttonIconColor),
+                    SizedBox(width: 12),
+                    Text('Cadastrar Placas', style: buttonTextStyle),
+                  ],
+                ),
               ),
-              SizedBox(height: 20),
-              // Texto de reconhecimento
-              Text(recognizedText, style: TextStyle(fontSize: 18)),
-            ],
-          ),
+            ),
+            SizedBox(height: 16),
+
+            // Botão para Placas Cadastradas
+            Container(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: verificarPlacasCadastradas,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: buttonTextColor,
+                  backgroundColor: buttonBackgroundColor,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 16),
+                    Icon(Icons.list, color: buttonIconColor),
+                    SizedBox(width: 12),
+                    Text('Placas Cadastradas', style: buttonTextStyle),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+
+            // Botão para Exportar para JSON
+            Container(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  exportToJson(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: buttonTextColor,
+                  backgroundColor: buttonBackgroundColor,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 16),
+                    Icon(Icons.file_upload, color: buttonIconColor),
+                    SizedBox(width: 12),
+                    Text('Exportar para JSON', style: buttonTextStyle),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+
+            // Botão para Importar de JSON
+            Container(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  importFromJson(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: buttonTextColor,
+                  backgroundColor: buttonBackgroundColor,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 16),
+                    Icon(Icons.file_download, color: buttonIconColor),
+                    SizedBox(width: 12),
+                    Text('Importar de JSON', style: buttonTextStyle),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+
+            // Texto de reconhecimento
+            Text(
+              recognizedText,
+              style: TextStyle(fontSize: 18),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

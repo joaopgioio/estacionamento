@@ -100,4 +100,14 @@ class DatabaseHelper {
     final db = await database;
     return await db.query('vehicles');
   }
+    // Método para verificar se um veículo já existe na base de dados
+    Future<bool> vehicleExists(String placa) async {
+      final db = await database;
+      final result = await db.query(
+        'vehicles',
+        where: 'placa = ?',
+        whereArgs: [placa],
+      );
+      return result.isNotEmpty;
+    }
 }
